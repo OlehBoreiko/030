@@ -99,7 +99,7 @@ Vagrant.configure("2") do |config|
        echo "Downloading ..."
        wget -q -P /vagrant https://www.dropbox.com/s/0deu7h35a3mbflr/response.varfile
        echo "Varfile downloaded"
-      echo "*****************************************************************"
+       echo "*****************************************************************"
    fi
 
     #Give executable permissions for Confluence installation file
