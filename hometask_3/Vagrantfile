@@ -1,0 +1,138 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+# All Vagrant configuration is done below. The "2" in Vagrant.configure
+# configures the configuration version (we support older styles for
+# backwards compatibility). Please don't change it unless you know what
+# you're doing.
+Vagrant.configure("2") do |config|
+  # The most common configuration options are documented and commented below.
+  # For a complete reference, please see the online documentation at
+  # https://docs.vagrantup.com.
+
+  # Every Vagrant development environment requires a box. You can search for
+  # boxes at https://vagrantcloud.com/search.
+  config.vm.box = "ubuntu/bionic64"
+
+  # Disable automatic box update checking. If you disable this, then
+  # boxes will only be checked for updates when the user runs
+  # `vagrant box outdated`. This is not recommended.
+  # config.vm.box_check_update = false
+
+  # Create a forwarded port mapping which allows access to a specific port
+  # within the machine from a port on the host machine. In the example below,
+  # accessing "localhost:8080" will access port 80 on the guest machine.
+  # NOTE: This will enable public access to the opened port
+  config.vm.network "forwarded_port", guest: 8090, host: 8080
+  config.vm.network "forwarded_port", guest: 3306, host: 3306
+  
+  # Create a forwarded port mapping which allows access to a specific port
+  # within the machine from a port on the host machine and only allow access
+  # via 127.0.0.1 to disable public access
+  # config.vm.network "forwarded_port", guest: 80, host: 8080, host_ip: "127.0.0.1"
+
+  # Create a private network, which allows host-only access to the machine
+  # using a specific IP.
+  # config.vm.network "private_network", ip: "192.168.33.10"
+
+  # Create a public network, which generally matched to bridged network.
+  # Bridged networks make the machine appear as another physical device on
+  # your network.
+  # config.vm.network "public_network"
+
+  # Share an additional folder to the guest VM. The first argument is
+  # the path on the host to the actual folder. The second argument is
+  # the path on the guest to mount the folder. And the optional third
+  # argument is a set of non-required options.
+#  config.vm.synced_folder "/", "/vagrant_data"
+
+  # Provider-specific configuration so you can fine-tune various
+  # backing providers for Vagrant. These expose provider-specific options.
+  # Example for VirtualBox:
+  #
+  config.vm.provider "virtualbox" do |vb|
+  #   # Display the VirtualBox GUI when booting the machine
+  #   vb.gui = true
+  #
+  #   # Customize the amount of memory on the VM:
+     vb.memory = "2000"
+  end
+  #
+  # View the documentation for the provider you are using for more
+  # information on available options.
+
+  # Enable provisioning with a shell script. Additional provisioners such as
+  # Puppet, Chef, Ansible, Salt, and Docker are also available. Please see the
+  # documentation for more information about their specific syntax and use.
+   config.vm.provision "shell", inline: <<-SHELL
+
+   #Update the package lists
+   apt-get update -y
+
+   #Install JRE
+   apt-get install -y default-jre
+
+   #Install MySQL Server
+   apt-get install -y mysql-server
+
+   #Create DB for Confluence
+   mysql -uroot -e "CREATE DATABASE CONFLUENCE CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;"
+
+   #Create DB user for Confluence
+   mysql -uroot -e "GRANT ALL PRIVILEGES ON CONFLUENCE.* TO 'root'@'localhost' IDENTIFIED BY '123456';"
+
+   #Check if Confluence installation file exists. Otherwise, download it to /vagrant directory.
+   if ! [ -f "/vagrant/atlassian-confluence-7.3.1-x64.bin" ]; then
+
+       echo "*****************************************************************"
+       echo "We didn't find Confluence installation file in /vagrant directory"
+       echo "Downloading ..."
+       wget -q -P /vagrant https://www.atlassian.com/software/confluence/downloads/binary/atlassian-confluence-7.3.1-x64.bin
+       echo "Installation file downloaded"
+       echo "*****************************************************************"
+   fi
+
+   #Check if Confluence response.varfile exists. Otherwise, download it to /vagrant directory.
+   if ! [ -f "/vagrant/response.varfile" ]; then
+       echo "*****************************************************************"
+       echo "We didn't find Confluence response.varfile file in /vagrant directory"
+       echo "Downloading ..."
+       wget -q -P /vagrant https://www.dropbox.com/s/0deu7h35a3mbflr/response.varfile
+       echo "Varfile downloaded"
+      echo "*****************************************************************"
+   fi
+
+    #Give executable permissions for Confluence installation file
+    chmod a+x /vagrant/atlassian-confluence-7.3.1-x64.bin
+
+    #Run Confluence installation in unattended mode
+    /vagrant/atlassian-confluence-7.3.1-x64.bin  -q -varfile /vagrant/response.varfile
+
+
+#/etc/init.d/confluence stop
+
+
+    #Check if Confluence MySQL DB driver file for Confluence exists. Otherwise, download it to /vagrant directory. 
+    #Untar and place the driver into /opt/atlassian/confluence/confluence/WEB-INF/lib
+    if ! [ -f "/vagrant/mysql-connector-java-5.1.48.tar.gz" ]; then
+       echo "*****************************************************************"
+       echo "We didn't find MySQL DB driver file in /vagrant directory"
+       echo "Downloading ..."
+       wget -q -P /vagrant https://dev.mysql.com/get/Downloads/Connector-J/mysql-connector-java-5.1.48.tar.gz
+       echo "DB driver downloaded"
+       tar -zxf /vagrant/mysql-connector-java-5.1.48.tar.gz -C /opt/atlassian/confluence/confluence/WEB-INF/lib mysql-connector-java-5.1.48/mysql-connector-java-5.1.48.jar --strip=1
+       echo "MySQL DB driver file has been placed into /opt/atlassian/confluence/confluence/WEB-INF/lib"
+       echo "*****************************************************************"
+    else
+       echo "*****************************************************************"
+       tar -zxf /vagrant/mysql-connector-java-5.1.48.tar.gz -C /opt/atlassian/confluence/confluence/WEB-INF/lib mysql-connector-java-5.1.48/mysql-connector-java-5.1.48.jar --strip=1
+       echo "MySQL DB driver file has been placed into /opt/atlassian/confluence/confluence/WEB-INF/lib"
+       echo "*****************************************************************"
+    fi
+
+
+#/etc/init.d/confluence start
+
+
+   SHELL
+end
